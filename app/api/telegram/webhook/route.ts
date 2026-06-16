@@ -10,6 +10,9 @@ export const dynamic = "force-dynamic";
  * message you send the bot is answered by the same advisor brain the dashboard
  * uses — so you can ask "can I afford a €500 bike?" from your phone.
  *
+ * Because data is now per-account, the bot is linked to one owner account via
+ * TELEGRAM_OWNER_EMAIL (the email you registered/sign in with).
+ *
  * The webhook is verified with the secret token Telegram echoes back in the
  * `X-Telegram-Bot-Api-Secret-Token` header.
  */
@@ -37,6 +40,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Resolve which account this bot speaks for.
+  const ownerEmail = process.env.TELEGRAM_OWNER_EMAIL;
+  const userId = ownerEmail ? await db.getUserIdByEmail(ownerEmail) : null;
+  if (!userId) {
+    await sendTelegramMessage(
+      "This bot isn't linked to an account yet. Set TELEGRAM_OWNER_EMAIL to the email you use to sign in.",
+      chatId
+    );
+    return NextResponse.json({ ok: true });
+  }
+
   if (text.startsWith("/start")) {
     await sendTelegramMessage(
       "Hey! I'm Fin, your money advisor. Ask me things like \"can I afford a €400 phone?\", \"where can I cut back?\", or \"how are my budgets?\"",
@@ -45,7 +59,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const data = await db.getAll();
+  const data = await db.getAll(userId);
   const { reply } = await ask(text, data);
   await sendTelegramMessage(reply, chatId);
   return NextResponse.json({ ok: true });

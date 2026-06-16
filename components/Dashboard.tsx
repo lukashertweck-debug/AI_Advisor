@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { signOut } from "next-auth/react";
 import { CATEGORIES, type Category, type Transaction, type TxType } from "@/lib/types";
 import { formatMoney } from "@/lib/finance";
 import { DonutChart, TrendChart } from "./charts";
@@ -22,7 +23,13 @@ interface DashboardPayload {
   trend: { month: string; income: number; expense: number; net: number }[];
 }
 
-export function Dashboard() {
+export function Dashboard({
+  userEmail,
+  userName,
+}: {
+  userEmail: string;
+  userName: string;
+}) {
   const [data, setData] = useState<DashboardPayload | null>(null);
   const [reaction, setReaction] = useState<{ message: string; usedAI: boolean } | null>(null);
 
@@ -51,6 +58,22 @@ export function Dashboard() {
             <span className="text-brand-soft">Fin</span> — Financial Advisor
           </h1>
           <p className="text-sm text-slate-400">Your money, with an advisor that actually has your back.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-brand/30 text-xs font-semibold uppercase">
+              {(userName || userEmail || "?").slice(0, 1)}
+            </span>
+            <span className="max-w-[160px] truncate text-xs text-slate-300" title={userEmail}>
+              {userName || userEmail}
+            </span>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/10"
+          >
+            Sign out
+          </button>
         </div>
       </header>
 

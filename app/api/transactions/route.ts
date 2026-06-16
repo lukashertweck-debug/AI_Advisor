@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { currentUserId } from "@/lib/session";
 import { summarize, budgetStatus, categorySpend, monthlyTrend } from "@/lib/finance";
 import { reactToPurchase, bigThreshold } from "@/lib/advisor";
 import { sendTelegramMessage, telegramEnabled } from "@/lib/telegram";
@@ -9,10 +10,13 @@ export const dynamic = "force-dynamic";
 
 // GET /api/transactions -> everything the dashboard needs in one call.
 export async function GET() {
-  const data = await db.getAll();
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const data = await db.getAll(userId);
   return NextResponse.json({
     currency: data.currency,
-    transactions: await db.getTransactions(),
+    transactions: data.transactions,
     summary: summarize(data),
     budgets: budgetStatus(data),
     categories: categorySpend(data.transactions.filter((t) => withinDays(t.date, 30))),
@@ -23,6 +27,9 @@ export async function GET() {
 // POST /api/transactions -> add one, and fire a proactive advisor reaction for
 // notable purchases (the seed of the "texts you like a person" feature).
 export async function POST(req: Request) {
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -35,8 +42,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const tx = await db.addTransaction(parsed.value);
-  const data = await db.getAll();
+  const tx = await db.addTransaction(userId, parsed.value);
+  const data = await db.getAll(userId);
 
   // Decide whether this purchase deserves a nudge.
   let reaction: { message: string; usedAI: boolean } | null = null;

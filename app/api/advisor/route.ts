@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { currentUserId } from "@/lib/session";
 import { ask, aiEnabled } from "@/lib/advisor";
 import type { AdvisorMessage } from "@/lib/types";
 
@@ -12,6 +13,9 @@ export async function GET() {
 
 // POST /api/advisor { question, history? } -> advice grounded in your finances.
 export async function POST(req: Request) {
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
     ? ((body as { history: AdvisorMessage[] }).history).slice(-10)
     : [];
 
-  const data = await db.getAll();
+  const data = await db.getAll(userId);
   const { reply, usedAI } = await ask(question, data, history);
   return NextResponse.json({ reply, usedAI });
 }

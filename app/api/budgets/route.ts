@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { currentUserId } from "@/lib/session";
 import { budgetStatus } from "@/lib/finance";
 import type { Budget, Category } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const data = await db.getAll();
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const data = await db.getAll(userId);
   return NextResponse.json({ budgets: budgetStatus(data) });
 }
 
 // PUT /api/budgets -> replace the budget list.
 export async function PUT(req: Request) {
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   let body: unknown;
   try {
     body = await req.json();
@@ -32,7 +39,7 @@ export async function PUT(req: Request) {
     budgets.push({ category, limit: Math.round(limit * 100) / 100 });
   }
 
-  await db.setBudgets(budgets);
-  const data = await db.getAll();
+  await db.setBudgets(userId, budgets);
+  const data = await db.getAll(userId);
   return NextResponse.json({ budgets: budgetStatus(data) });
 }
