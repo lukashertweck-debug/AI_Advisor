@@ -9,12 +9,14 @@ import { Pool, type QueryResult, type QueryResultRow } from "pg";
  */
 
 const connectionString = process.env.DATABASE_URL;
-const isLocal = !!connectionString && /localhost|127\.0\.0\.1/.test(connectionString);
+// Enable SSL only when the connection string asks for it (managed Postgres like
+// Neon/Vercel include `sslmode=require`). Self-hosted/Docker Postgres on an
+// internal network has no SSL, so we must not force it there.
+const wantSSL = !!connectionString && /sslmode=require|ssl=true/i.test(connectionString);
 
 export const pool = new Pool({
   connectionString,
-  // Managed Postgres (Neon/Vercel) requires SSL; local dev usually doesn't.
-  ssl: connectionString && !isLocal ? { rejectUnauthorized: false } : undefined,
+  ssl: wantSSL ? { rejectUnauthorized: false } : undefined,
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
