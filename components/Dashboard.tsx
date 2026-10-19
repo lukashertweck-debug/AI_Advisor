@@ -145,6 +145,10 @@ export function Dashboard({
               onDeleted={load}
             />
           </Card>
+
+          <Card title="Lockscreen widget">
+            <WidgetSetup />
+          </Card>
         </div>
 
         {/* Right: advisor chat */}
@@ -383,6 +387,133 @@ function TransactionList({
         </li>
       ))}
     </ul>
+  );
+}
+
+function WidgetSetup() {
+  const [token, setToken] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+    fetch("/api/widget-token")
+      .then((r) => r.json())
+      .then((d) => setToken(d.token ?? null))
+      .catch(() => setToken(null));
+  }, []);
+
+  const endpoint = origin ? `${origin}/api/widget` : "/api/widget";
+
+  async function copy(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
+  async function rotate() {
+    if (!confirm("Generate a new token? Any widget using the old one will stop working until you update it.")) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/widget-token", { method: "POST" });
+      const d = await res.json();
+      setToken(d.token ?? null);
+      setRevealed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const maskedToken = token ? (revealed ? token : "•".repeat(Math.min(28, token.length))) : "…";
+
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-slate-400">
+        Show your balance &amp; savings rate on your iPhone lockscreen with the free{" "}
+        <span className="text-slate-200">Scriptable</span> app. Paste the URL and token into the{" "}
+        <code className="rounded bg-black/40 px-1 text-xs">scriptable/fin-widget.js</code> script
+        from the repo.
+      </p>
+
+      <Field
+        label="Endpoint URL"
+        value={endpoint}
+        display={endpoint}
+        onCopy={() => copy(endpoint, "url")}
+        copied={copied === "url"}
+      />
+
+      <Field
+        label="Your secret token"
+        value={token ?? ""}
+        display={maskedToken}
+        onCopy={() => token && copy(token, "token")}
+        copied={copied === "token"}
+        extra={
+          <button
+            onClick={() => setRevealed((v) => !v)}
+            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10"
+          >
+            {revealed ? "Hide" : "Show"}
+          </button>
+        }
+      />
+
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <p className="text-xs text-slate-500">
+          Anyone with this token can read your summary numbers. Rotate it if it leaks.
+        </p>
+        <button
+          onClick={rotate}
+          disabled={busy}
+          className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50"
+        >
+          {busy ? "…" : "New token"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  display,
+  onCopy,
+  copied,
+  extra,
+}: {
+  label: string;
+  value: string;
+  display: string;
+  onCopy: () => void;
+  copied: boolean;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs text-slate-500">{label}</p>
+      <div className="flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-slate-200">
+          {display || value}
+        </code>
+        {extra}
+        <button
+          onClick={onCopy}
+          className="shrink-0 rounded-lg bg-brand px-2.5 py-1.5 text-xs font-medium text-white hover:bg-brand-soft"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
   );
 }
 

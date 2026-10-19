@@ -74,6 +74,24 @@ Now: expensive purchases ping you automatically, and texting the bot
 
 ---
 
+## Lockscreen widget (iPhone) 📱
+
+Show your balance, net and savings rate on your iOS lockscreen (or home screen)
+using the free **Scriptable** app — no app-store build needed.
+
+1. In the dashboard, open the **Lockscreen widget** card and copy your
+   **Endpoint URL** and **secret token**.
+2. Install **Scriptable** from the App Store.
+3. Create a new script, paste in [`scriptable/fin-widget.js`](scriptable/fin-widget.js),
+   and fill in `ENDPOINT` + `TOKEN` at the top.
+4. Lockscreen → hold → **Customize** → add a **Scriptable** widget → pick the script.
+
+The widget calls `GET /api/widget` with `Authorization: Bearer <token>` and gets
+back only aggregate numbers (never individual transactions). The token is
+per-account and can be rotated from the dashboard if it ever leaks.
+
+---
+
 ## Project layout
 
 ```

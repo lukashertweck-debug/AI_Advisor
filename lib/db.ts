@@ -1,4 +1,5 @@
 import { pool, query } from "./pg";
+import { randomBytes } from "crypto";
 import { seedData } from "./seed";
 import type { Budget, StoreData, Transaction } from "./types";
 
@@ -182,6 +183,35 @@ export const db = {
     const { rows } = await query<{ id: number }>(
       `SELECT id FROM users WHERE lower(email) = lower($1) LIMIT 1`,
       [email]
+    );
+    return rows[0]?.id ?? null;
+  },
+
+  // ---- lockscreen widget token ----
+
+  /** Return the account's widget token, creating one the first time. */
+  async getOrCreateWidgetToken(userId: UserId): Promise<string> {
+    const { rows } = await query<{ widget_token: string | null }>(
+      `SELECT widget_token FROM users WHERE id = $1`,
+      [userId]
+    );
+    const existing = rows[0]?.widget_token;
+    if (existing) return existing;
+    return this.regenerateWidgetToken(userId);
+  },
+
+  /** Issue a fresh token (invalidates any widget using the old one). */
+  async regenerateWidgetToken(userId: UserId): Promise<string> {
+    const token = randomBytes(24).toString("base64url");
+    await query(`UPDATE users SET widget_token = $2 WHERE id = $1`, [userId, token]);
+    return token;
+  },
+
+  async getUserIdByWidgetToken(token: string): Promise<number | null> {
+    if (!token) return null;
+    const { rows } = await query<{ id: number }>(
+      `SELECT id FROM users WHERE widget_token = $1 LIMIT 1`,
+      [token]
     );
     return rows[0]?.id ?? null;
   },
